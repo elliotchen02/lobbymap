@@ -17,7 +17,7 @@ Provide a one-sentence reason for the class you choose.
 
 #### QUERY PARAMS ####
 # Number of annotations to save to each CSV (saving progress)
-ANNOTATIONS_PER_SAVE = 10000
+ANNOTATIONS_PER_SAVE = 2000
 NUMBER_OF_ANNOTATIONS = 10000
 DEFAULT_QUERY = """
 SELECT
@@ -44,7 +44,8 @@ JOIN
 LIMIT (%s);
 """
 # Columns from Maplight ground truth to exclude from LLM
-GROUND_TRUTH_COLUMNS = [
+EXCLUDE_COLUMNS = [
+    'bill_number',
     'organization_name',
     'disposition',
 ]

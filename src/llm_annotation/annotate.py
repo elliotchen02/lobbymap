@@ -97,7 +97,7 @@ def run_annotations():
         for entry in tqdm(cursor, total=NUMBER_OF_ANNOTATIONS):
             column_names = [desc[0] for desc in cursor.description]
             entry_dict_to_parse = {col: e for col, e in zip(column_names, entry)}
-            parsed_text = parse_entry(entry_dict_to_parse, GROUND_TRUTH_COLUMNS)
+            parsed_text = parse_entry(entry_dict_to_parse, EXCLUDE_COLUMNS)
         
             try:
                 llm_annotation = annotate(str(parsed_text), annotation_count)

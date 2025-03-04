@@ -25,6 +25,7 @@ def parse_entry(entry: dict, exclude_columns: list) -> str:
     """
     Parse a SQL row into a string that can be fed to an LLM for annotation.
     The SQL row is a dictionary where the keys are the column names and the values are the column values.
+    Checks for a maximum text length and truncates if necessary.
 
     Args:
         entry: A dictionary where the keys are the column names and the values are the column values of an entry row.
@@ -32,7 +33,12 @@ def parse_entry(entry: dict, exclude_columns: list) -> str:
     Returns:
         A string that can be fed to an LLM for annotation.
     """
-    parsed_text_array = [f"{key}: {entry[key]}" for key in entry.keys() if key not in exclude_columns]
+    parsed_text_array = []
+    for key, value in entry.items():
+        if key not in exclude_columns:
+            if key == "bill_summary_text" and len(value) > 140:
+                value = value[:137] + "..."
+            parsed_text_array.append(f"{key}: {value}")
     return "\n".join(parsed_text_array)
 
 
