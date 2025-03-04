@@ -14,10 +14,16 @@ classify the lobbyist's intentions as one of five categories:
 'Support', 'Oppose', 'Amend', 'Monitor', or 'Unsure' if you cannot determine. 
 Provide a one-sentence reason for the class you choose.
 """
+PROMPT_1_NO_REASON = """
+You are given a description of a lobbying report. Based on the report, 
+classify the lobbyist's intentions as one of five categories:
+'Support', 'Oppose', 'Amend', 'Monitor', or 'Unsure' if you cannot determine.
+Provide no explanation.
+"""
 
 #### QUERY PARAMS ####
 # Number of annotations to save to each CSV (saving progress)
-ANNOTATIONS_PER_SAVE = 2000
+ANNOTATIONS_PER_SAVE = 500
 NUMBER_OF_ANNOTATIONS = 10000
 DEFAULT_QUERY = """
 SELECT
@@ -51,7 +57,7 @@ EXCLUDE_COLUMNS = [
 ]
 
 #### MODEL PARAMS ####
-MODEL = "gpt-4o"
+MODEL = "gpt-4o-mini"
 # Value from 0 to 2, higher = more creative
 # See https://platform.openai.com/docs/api-reference/chat/create#chat-create-temperature
 TEMPERATURE = 0

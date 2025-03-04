@@ -15,7 +15,7 @@ from params import *
 logger = create_logger("annotations")
 
 # TODO Select your prompt 
-PROMPT = PROMPT_1
+PROMPT = PROMPT_1_NO_REASON
 
 # Load environment vars from .env
 load_dotenv()
@@ -42,7 +42,7 @@ class Annotation(BaseModel):
     filing_uuid: str
     issue_text: str
     predicted_class: PredictedClass
-    reasoning: str
+    #TODO reasoning: str
 
 
 def annotate(data: str, annotation_count: int) -> Annotation:
@@ -98,11 +98,10 @@ def run_annotations():
             column_names = [desc[0] for desc in cursor.description]
             entry_dict_to_parse = {col: e for col, e in zip(column_names, entry)}
             parsed_text = parse_entry(entry_dict_to_parse, EXCLUDE_COLUMNS)
-        
             try:
                 llm_annotation = annotate(str(parsed_text), annotation_count)
             except Exception as e:
-                logger.error(e)
+                logger.error(e, annotation_count)
                 continue
             
             # Check if llm annotation matches ground truth
@@ -114,11 +113,12 @@ def run_annotations():
             llm_annotation_dict = {
                 'filing_uuid': llm_annotation.filing_uuid,
                 'predicted_class': llm_annotation.predicted_class,
-                'reasoning': llm_annotation.reasoning,
+                # TODO 'reasoning': llm_annotation.reasoning,
                 'equals_maplight': equals_maplight
             }
             completed_annotations = save_annotation_to_df(completed_annotations, llm_annotation_dict)
             if annotation_count % ANNOTATIONS_PER_SAVE == 0: 
+                # logger.info(f"Saved {ANNOTATIONS_PER_SAVE} annotations to annotations.csv!")
                 completed_annotations.to_csv(f'annotations.csv', index=False)
                 current_file_count += 1
             annotation_count += 1
