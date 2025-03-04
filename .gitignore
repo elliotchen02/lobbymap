@@ -4,3 +4,11 @@
 # environemnt variables
 .env
 
+# python cache
+__pycache__
+
+# local program outputs
+.csv
+.log
+annotations.log
+annotations.csv
