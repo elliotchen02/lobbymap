@@ -14,6 +14,9 @@ from params import *
 
 logger = create_logger("annotations")
 
+# TODO Select your prompt 
+PROMPT = PROMPT_1
+
 # Load environment vars from .env
 load_dotenv()
 
@@ -60,7 +63,7 @@ def annotate(data: str, annotation_count: int) -> Annotation:
         store=False,
         messages=[
             {"role": "user", 
-                "content": PROMPT_1},
+                "content": PROMPT},
             {"role": "user",
                 "content": data},
             ],

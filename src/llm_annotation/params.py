@@ -4,9 +4,9 @@
 
 #### PROMPTS ####
 DEFAULT_PROMPT = """
-Classify the given text which explicitly reports lobbying activities for a bill 
-into one of the five types: 'Support', 'Oppose', 'Amend', 'Monitor', or 'Unsure'. 
-Provide a one-sentence reason for the class you choose.
+Classify the given text that explicitly describes lobbying activities for a bill 
+into one of the five types: 
+'Support', 'Oppose', 'Amend', 'Monitor', or 'Unsure' without explanation.
 """
 PROMPT_1 = """
 You are given a description of a lobbying report. Based on the report, 
@@ -18,7 +18,7 @@ Provide a one-sentence reason for the class you choose.
 #### QUERY PARAMS ####
 # Number of annotations to save to each CSV (saving progress)
 ANNOTATIONS_PER_SAVE = 10000
-NUMBER_OF_ANNOTATIONS = 5
+NUMBER_OF_ANNOTATIONS = 10000
 DEFAULT_QUERY = """
 SELECT
     f.filing_uuid,
