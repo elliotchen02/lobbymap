@@ -112,20 +112,21 @@ def run_annotations():
             # Save progress
             llm_annotation_dict = {
                 'filing_uuid': llm_annotation.filing_uuid,
+                'issue_text': llm_annotation.issue_text,
                 'predicted_class': llm_annotation.predicted_class,
                 # TODO 'reasoning': llm_annotation.reasoning,
                 'equals_maplight': equals_maplight
             }
             completed_annotations = save_annotation_to_df(completed_annotations, llm_annotation_dict)
-            if annotation_count % ANNOTATIONS_PER_SAVE == 0: 
+            if annotation_count % ANNOTATIONS_PER_SAVE == 0 and annotation_count != 0: 
                 logger.info(f"Saving file {current_file_count}!")
-                completed_annotations.to_csv(f'annotations_{current_file_count}.csv')
+                completed_annotations.to_csv(f'annotations/annotations_{current_file_count}.csv')
                 completed_annotations = pd.DataFrame()
                 current_file_count += 1
             annotation_count += 1
 
         # Save any remaining annotations
-        completed_annotations.to_csv(f'annotations_{current_file_count}.csv')
+        completed_annotations.to_csv(f'annotations/annotations_{current_file_count}.csv')
         logger.info(f"Saved {annotation_count} annotations to annotations.csv!")
         
 if __name__ == '__main__':
