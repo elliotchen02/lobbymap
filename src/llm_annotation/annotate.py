@@ -118,15 +118,16 @@ def run_annotations():
             }
             completed_annotations = save_annotation_to_df(completed_annotations, llm_annotation_dict)
             if annotation_count % ANNOTATIONS_PER_SAVE == 0: 
-                # logger.info(f"Saved {ANNOTATIONS_PER_SAVE} annotations to annotations.csv!")
-                completed_annotations.to_csv(f'annotations.csv', index=False)
+                logger.info(f"Saving file {current_file_count}!")
+                completed_annotations.to_csv(f'annotations_{current_file_count}.csv')
+                completed_annotations = pd.DataFrame()
                 current_file_count += 1
             annotation_count += 1
 
         # Save any remaining annotations
-        completed_annotations.to_csv(f'annotations.csv', index=False)
+        completed_annotations.to_csv(f'annotations_{current_file_count}.csv')
         logger.info(f"Saved {annotation_count} annotations to annotations.csv!")
-
+        
 if __name__ == '__main__':
     run_annotations()
 

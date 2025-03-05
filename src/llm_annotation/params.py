@@ -23,7 +23,7 @@ Provide no explanation.
 
 #### QUERY PARAMS ####
 # Number of annotations to save to each CSV (saving progress)
-ANNOTATIONS_PER_SAVE = 500
+ANNOTATIONS_PER_SAVE = 1000
 NUMBER_OF_ANNOTATIONS = 10000
 DEFAULT_QUERY = """
 SELECT
