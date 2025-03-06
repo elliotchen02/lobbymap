@@ -3,7 +3,8 @@
 ##########################################################
 
 #### PROMPTS ####
-DEFAULT_PROMPT = """
+# Default prompt is prompt no. 0
+DEFAULT_PROMPT = """ 
 Classify the given text that explicitly describes lobbying activities for a bill 
 into one of the five types: 
 'Support', 'Oppose', 'Amend', 'Monitor', or 'Unsure' without explanation.
@@ -24,7 +25,7 @@ Provide no explanation.
 #### QUERY PARAMS ####
 # Number of annotations to save to each CSV (saving progress)
 ANNOTATIONS_PER_SAVE = 1000
-NUMBER_OF_ANNOTATIONS = 10000
+NUMBER_OF_ANNOTATIONS = 1000
 DEFAULT_QUERY = """
 SELECT
     f.filing_uuid,

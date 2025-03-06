@@ -15,7 +15,7 @@ from params import *
 logger = create_logger("annotations")
 
 # TODO Select your prompt 
-PROMPT = PROMPT_1_NO_REASON
+PROMPT = DEFAULT_PROMPT
 
 # Load environment vars from .env
 load_dotenv()
@@ -126,8 +126,9 @@ def run_annotations():
             annotation_count += 1
 
         # Save any remaining annotations
-        completed_annotations.to_csv(f'annotations/annotations_{current_file_count}.csv', Index=False)
-        logger.info(f"Saved {annotation_count} annotations to annotations.csv!")
+        if len(completed_annotations) > 0:
+            completed_annotations.to_csv(f'annotations/annotations_{current_file_count}.csv', Index=False)
+            logger.info(f"Saved {annotation_count} annotations to annotations.csv!")
         
 if __name__ == '__main__':
     run_annotations()
