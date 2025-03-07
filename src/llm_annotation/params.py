@@ -24,7 +24,7 @@ Provide no explanation.
 
 #### QUERY PARAMS ####
 # Number of annotations to save to each CSV (saving progress)
-ANNOTATIONS_PER_SAVE = 1000
+ANNOTATIONS_PER_SAVE = 1
 NUMBER_OF_ANNOTATIONS = 1000
 DEFAULT_QUERY = """
 SELECT
@@ -62,3 +62,6 @@ MODEL = "gpt-4o-mini"
 # Value from 0 to 2, higher = more creative
 # See https://platform.openai.com/docs/api-reference/chat/create#chat-create-temperature
 TEMPERATURE = 0
+
+#### OUTPUT PATH ####
+OUTPUT_PATH = "annotations/P1_4o_noexp"
