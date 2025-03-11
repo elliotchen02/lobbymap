@@ -24,7 +24,9 @@ Provide no explanation.
 
 #### QUERY PARAMS ####
 # Number of annotations to save to each CSV (saving progress)
-ANNOTATIONS_PER_SAVE = 1
+
+# TODO change ORDER BY
+ANNOTATIONS_PER_SAVE = 1000
 NUMBER_OF_ANNOTATIONS = 1000
 DEFAULT_QUERY = """
 SELECT
@@ -48,6 +50,7 @@ JOIN
     maplight.disam_2024 c USING (lob_id)
 JOIN
     maplight.bill_org_disp_fixed m ON b.bill_id = m.bill_id AND c.organization_id = m.organization_id
+ORDER BY filing_uuid
 LIMIT (%s);
 """
 # Columns from Maplight ground truth to exclude from LLM
