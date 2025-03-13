@@ -1,5 +1,8 @@
 import os
+from collections import deque
 from enum import Enum
+import threading
+from typing import override
 
 from pydantic import BaseModel
 from openai import OpenAI, ChatCompletion
@@ -15,12 +18,70 @@ from params import *
 logger = create_logger("annotations")
 
 # TODO Select your prompt 
-PROMPT = DEFAULT_PROMPT
+PROMPT = PROMPT_1_NO_EXP
 
 # Load environment vars from .env
 load_dotenv()
 
 client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+
+
+class AnnotationThread(threading.Thread):
+    def __init__(
+            self, 
+            record_dict: dict, 
+            annotation_count: int, 
+            completed_annotations: pd.DataFrame,
+            df_lock: threading.Lock
+        ):
+        """
+        Initialize the AnnotationThread object. The thread will annotate a single record (entry) via an OpenAI API call
+        and save the annotation to a pandas DataFrame that is shared between threads. 
+
+        Args:
+            record_dict: A dictionary where the keys are the column names and the values are the column values of an entry row.
+            annotation_count: The index of the annotation being annotated.
+            completed_annotations: A pandas DataFrame that is shared between threads.
+            df_lock: A threading.Lock object that is used to synchronize access to the completed_annotations DataFrame.
+        """
+        super().__init__()
+        self.record_dict = record_dict.copy()
+        self.parsed_text = parse_entry(self.record_dict, EXCLUDE_COLUMNS)
+        self.annotation_count = annotation_count
+        self.df = completed_annotations
+        self.df_lock = df_lock
+
+    @override
+    def run(self):
+        # Use of global variables is dangerous and should be avoided, 
+        # but in this case, it is necessary to share the completed_annotations DataFrame between threads
+        global current_file_count
+        try:
+            llm_annotation = annotate(self.parsed_text, self.annotation_count)
+
+            # Check if llm annotation matches Maplight ground truth data
+            equals_maplight = False
+            if str(llm_annotation.predicted_class).lower() == self.record_dict['disposition'].lower():
+                equals_maplight = True
+            
+            # Save annotation to pandas DataFrame
+            llm_annotation_dict = {
+                'filing_uuid': llm_annotation.filing_uuid,
+                'issue_text': llm_annotation.issue_text,
+                'predicted_class': llm_annotation.predicted_class,
+                # TODO 'reasoning': llm_annotation.reasoning,
+                'maplight_disposition': self.record_dict['disposition'].upper(),
+                'equals_maplight': equals_maplight
+            }
+            with self.df_lock:
+                save_annotation_to_df(self.df, llm_annotation_dict)
+                if len(self.df) % ANNOTATIONS_PER_SAVE == 0 and len(self.df) != 0: 
+                    logger.debug(f"Saving file {current_file_count}!")
+                    self.df.to_csv(f'{OUTPUT_PATH}/annotations_{current_file_count}.csv',index=False)
+                    self.df.drop(self.df.index, inplace=True)
+                    current_file_count += 1
+        except Exception as e:
+            logger.error(e)
 
 
 class PredictedClass(Enum):
@@ -43,6 +104,16 @@ class Annotation(BaseModel):
     issue_text: str
     predicted_class: PredictedClass
     #TODO reasoning: str
+
+
+def create_db_connection():
+    connection = psycopg2.connect(
+        host=os.environ["LOBBYVIEW_HOST"],
+        database=os.environ["LOBBYVIEW_DB"],
+        user=os.environ["LOBBYVIEW_USER"],
+        password=os.environ["LOBBYVIEW_PASSWORD"],
+    )
+    return connection
 
 
 def annotate(data: str, annotation_count: int) -> Annotation:
@@ -77,60 +148,45 @@ def annotate(data: str, annotation_count: int) -> Annotation:
         return annotation.parsed
 
 
-def run_annotations():
-    lobbyview = psycopg2.connect(
-        host=os.environ["LOBBYVIEW_HOST"],
-        database=os.environ["LOBBYVIEW_DB"],
-        user=os.environ["LOBBYVIEW_USER"],
-        password=os.environ["LOBBYVIEW_PASSWORD"],
-    )
+
+if __name__ == '__main__':
+    lobbyview = create_db_connection()
     logger.info("Connected to database!\n")
-    completed_annotations = pd.DataFrame()
+    completed_annotations = pd.DataFrame(columns=OUTPUT_COLUMNS)
     with lobbyview.cursor() as cursor:
         logger.info("Executing query...\n")
-        # cursor.execute("SET statement_timeout = %s", ('1200000',))
         cursor.execute(DEFAULT_QUERY, (NUMBER_OF_ANNOTATIONS,))
         logger.info("Query returned sucessfully!\n")
 
+        # Create a lock to ensure threads don't overwrite each other on the dataframe
+        df_lock = threading.Lock()
+        # Maintain a queue of current running threads to limit concurrency
+        curr_running_threads = deque()
+        # Current annotation number
         annotation_count = 0
+        # Current file number (to be saved to csv)
         current_file_count = 0
         for entry in tqdm(cursor, total=NUMBER_OF_ANNOTATIONS):
             column_names = [desc[0] for desc in cursor.description]
             entry_dict_to_parse = {col: e for col, e in zip(column_names, entry)}
-            parsed_text = parse_entry(entry_dict_to_parse, EXCLUDE_COLUMNS)
-            try:
-                llm_annotation = annotate(str(parsed_text), annotation_count)
-            except Exception as e:
-                logger.error(e, annotation_count)
-                continue
-            
-            # Check if llm annotation matches ground truth
-            equals_maplight = False
-            if str(llm_annotation.predicted_class).lower() == entry_dict_to_parse['disposition'].lower():
-                equals_maplight = True
-            
-            # Save progress
-            llm_annotation_dict = {
-                'filing_uuid': llm_annotation.filing_uuid,
-                'issue_text': llm_annotation.issue_text,
-                'predicted_class': llm_annotation.predicted_class,
-                # TODO 'reasoning': llm_annotation.reasoning,
-                'equals_maplight': equals_maplight
-            }
-            completed_annotations = save_annotation_to_df(completed_annotations, llm_annotation_dict)
-            if annotation_count % ANNOTATIONS_PER_SAVE == 0 and annotation_count != 0: 
-                logger.info(f"Saving file {current_file_count}!")
-                completed_annotations.to_csv(f'{OUTPUT_PATH}/annotations_{current_file_count}.csv',index=False)
-                completed_annotations = pd.DataFrame()
-                current_file_count += 1
+
+            # If too many threads are running, wait for the oldest thread to finish
+            if len(curr_running_threads) >= MAX_THREADS:
+                curr_running_threads.popleft().join()
+
+            thread = AnnotationThread(entry_dict_to_parse, annotation_count, completed_annotations, df_lock)
+            curr_running_threads.append(thread)
+            thread.start()
             annotation_count += 1
+
+        # Wait for any remaining threads to finish
+        for t in curr_running_threads:
+            t.join()
 
         # Save any remaining annotations
         if len(completed_annotations) > 0:
             completed_annotations.to_csv(f'{OUTPUT_PATH}/annotations_{current_file_count}.csv', index=False)
-            logger.info(f"Saved {annotation_count} annotations to {OUTPUT_PATH}.csv!")
+        logger.info(f"Saved {annotation_count} annotations to {OUTPUT_PATH}!")
         
-if __name__ == '__main__':
-    run_annotations()
 
 
