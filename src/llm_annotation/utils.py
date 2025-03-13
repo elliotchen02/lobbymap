@@ -1,8 +1,7 @@
 import logging
 import sys
-import pandas as pd
 
-LOGGING_LEVEL = logging.DEBUG
+LOGGING_LEVEL = logging.INFO
 
 def create_logger(name: str) -> logging.Logger:
     logger = logging.getLogger(name)
@@ -42,17 +41,6 @@ def parse_entry(entry: dict, exclude_columns: list, max_text_length: int = 150) 
                 value = value[:137] + "..."
             parsed_text_array.append(f"{key}: {value}")
     return "\n".join(parsed_text_array)
-
-
-def save_annotation_to_df(df: pd.DataFrame, annotation_dict: dict):
-    """
-    Save an LLM annotation to a pandas DataFrame. Appends the annotation to the end of the DataFrame.
-
-    Args:
-        df: A pandas DataFrame to save the annotation to.
-        annotation_dict: A dictionary where the keys are the column names and the values are the column values of the annotation.
-    """
-    df.loc[len(df)] = annotation_dict
 
 
 

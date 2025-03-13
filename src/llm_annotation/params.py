@@ -3,8 +3,8 @@
 ##########################################################
 
 #### MODEL & SCRIPT PARAMS ####
-ANNOTATIONS_PER_SAVE = 10
-NUMBER_OF_ANNOTATIONS = 100
+ANNOTATIONS_PER_SAVE = 100
+NUMBER_OF_ANNOTATIONS = 1000
 MAX_THREADS = 10
 MODEL = "gpt-4o-mini"
 # Value from 0 to 2, higher = more creative
