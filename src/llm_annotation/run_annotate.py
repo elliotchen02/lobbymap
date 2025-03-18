@@ -2,7 +2,6 @@ import os
 from collections import deque, defaultdict
 from enum import Enum
 import threading
-from typing import override
 
 from openai import OpenAI, ChatCompletion
 from tqdm import tqdm
@@ -65,7 +64,7 @@ class AnnotationThread(threading.Thread):
         }
         self.completed_annotations.add_entry(update_dict)
 
-    @override
+    # Override the run method
     def run(self):
         try:
             llm_annotation = annotate(self.parsed_text, self.annotation_count)
