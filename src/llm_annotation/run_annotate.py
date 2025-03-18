@@ -129,6 +129,7 @@ if __name__ == '__main__':
     llm_annotations = AnnotationTable(columns=OUTPUT_COLUMNS)
     with lobbyview.cursor() as cursor:
         logger.info("Executing query...\n")
+        cursor.execute("SET statement_timeout = %s", ('1000000',))  # timeout in milliseconds
         cursor.execute(DEFAULT_QUERY, (NUMBER_OF_ANNOTATIONS,))
         logger.info("Query returned sucessfully!\n")
 

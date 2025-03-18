@@ -3,8 +3,8 @@
 ##########################################################
 
 #### MODEL & SCRIPT PARAMS ####
-ANNOTATIONS_PER_SAVE = 100
-NUMBER_OF_ANNOTATIONS = 1000
+ANNOTATIONS_PER_SAVE = 10000    # Number of annotations to save to each CSV (saving progress)
+NUMBER_OF_ANNOTATIONS = 250000
 MAX_THREADS = 10
 MODEL = "gpt-4o-mini"
 # Value from 0 to 2, higher = more creative
@@ -18,7 +18,7 @@ OUTPUT_COLUMNS = [
     'maplight_disposition',
     'equals_maplight',
 ]
-OUTPUT_PATH = "annotations"
+OUTPUT_PATH = "annotations/maplight_annotations"
 
 
 #### PROMPTS ####
@@ -43,8 +43,6 @@ Provide no explanation.
 
 
 #### POSTEGRESQL QUERY PARAMS ####
-# Number of annotations to save to each CSV (saving progress)
-# TODO change ORDER BY
 DEFAULT_QUERY = """
 SELECT
     f.filing_uuid,
@@ -67,10 +65,9 @@ JOIN
     maplight.disam_2024 c USING (lob_id)
 JOIN
     maplight.bill_org_disp_fixed m ON b.bill_id = m.bill_id AND c.organization_id = m.organization_id
-ORDER BY 
-    f.filing_uuid
 LIMIT (%s);
 """
+
 # Columns from Maplight ground truth to exclude from LLM
 EXCLUDE_COLUMNS = [
     'bill_number',
