@@ -36,6 +36,8 @@ def parse_entry(entry: dict, exclude_columns: list, max_text_length: int = 150) 
     """
     parsed_text_array = []
     for key, value in entry.items():
+        if not key or not value:
+            continue
         if key not in exclude_columns:
             if key == "bill_summary_text" and len(value) > max_text_length:
                 value = value[:137] + "..."

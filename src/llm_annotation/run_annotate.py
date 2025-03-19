@@ -146,10 +146,14 @@ if __name__ == '__main__':
             if len(curr_running_threads) >= MAX_THREADS:
                 curr_running_threads.popleft().join()
 
-            thread = AnnotationThread(entry_dict_to_parse, annotation_count, llm_annotations, df_lock)
-            curr_running_threads.append(thread)
-            thread.start()
-            annotation_count += 1
+            try:
+                thread = AnnotationThread(entry_dict_to_parse, annotation_count, llm_annotations, df_lock)
+                curr_running_threads.append(thread)
+                thread.start()
+                annotation_count += 1
+            except Exception as e:
+                logger.error(e)
+                continue
 
         # Wait for any remaining threads to finish
         for t in curr_running_threads:

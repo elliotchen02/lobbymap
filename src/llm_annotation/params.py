@@ -65,7 +65,8 @@ JOIN
     maplight.disam_2024 c USING (lob_id)
 JOIN
     maplight.bill_org_disp_fixed m ON b.bill_id = m.bill_id AND c.organization_id = m.organization_id
-LIMIT (%s);
+ORDER BY 
+    f.filing_uuid;
 """
 
 # Columns from Maplight ground truth to exclude from LLM
