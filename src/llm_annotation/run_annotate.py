@@ -44,7 +44,6 @@ class AnnotationThread(threading.Thread):
         """
         super().__init__()
         self.entry_dict = entry_dict.copy()
-        self.parsed_text = parse_entry(self.entry_dict, EXCLUDE_COLUMNS)
         self.annotation_count = annotation_count
         self.completed_annotations = completed_annotations
         self.df_lock = df_lock
@@ -67,7 +66,8 @@ class AnnotationThread(threading.Thread):
     # Override the run method
     def run(self):
         try:
-            llm_annotation = annotate(self.parsed_text, self.annotation_count)
+            parsed_text = parse_entry(self.entry_dict, EXCLUDE_COLUMNS)
+            llm_annotation = annotate(parsed_text, self.annotation_count)
             # Save annotation to shared completed annotations table
             with self.df_lock:
                 self.save_annotation(llm_annotation)
@@ -76,7 +76,7 @@ class AnnotationThread(threading.Thread):
                     self.completed_annotations.save_to_csv(OUTPUT_PATH)
                     self.completed_annotations.clear_entries()
         except Exception as e:
-            logger.error(e)
+            logger.error(f"Annotation {self.annotation_count} with data {self.entry_dict} failed with the following error:\n {e}")
 
 
 def create_db_connection():
@@ -152,7 +152,7 @@ if __name__ == '__main__':
                 thread.start()
                 annotation_count += 1
             except Exception as e:
-                logger.error(e)
+                logger.error(f"Annotation {str(annotation_count)} with data {entry_dict_to_parse} failed with the following error: {e}")
                 continue
 
         # Wait for any remaining threads to finish
@@ -160,7 +160,10 @@ if __name__ == '__main__':
             t.join()
 
         # Save any remaining annotations
-        if len(llm_annotations) > 0:
-           llm_annotations.save_to_csv(OUTPUT_PATH)
+        try:
+            if len(llm_annotations) > 0:
+                llm_annotations.save_to_csv(OUTPUT_PATH)
+        except Exception as e:
+            logger.error(f"Failed to save remaining {len(llm_annotations)} annotations with the following error:\n {e}")
         logger.info(f"Saved {annotation_count} annotations to {OUTPUT_PATH}!")
 
