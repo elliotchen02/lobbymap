@@ -17,11 +17,17 @@ class PredictedClass(Enum):
         return self.name
 
 class Annotation(BaseModel):
-    """Annotation format to be returned by GPT model"""
+    """Annotation format to be returned by GPT model. Does not include reasoning."""
     filing_uuid: str
     issue_text: str
     predicted_class: PredictedClass
-    #TODO reasoning: str
+
+class AnnotationWithReasoning(BaseModel):
+    """Annotation format to be returned by GPT model. Includes reasoning."""
+    filing_uuid: str
+    issue_text: str
+    predicted_class: PredictedClass
+    reasoning: str
 
 class AnnotationTable:
     def __init__(self, columns: list[str]):

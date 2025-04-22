@@ -1,4 +1,5 @@
 import logging
+import argparse
 import sys
 
 LOGGING_LEVEL = logging.INFO
@@ -21,6 +22,21 @@ def create_logger(name: str) -> logging.Logger:
     logger.addHandler(file_handler)
     return logger
 
+def create_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(prog='llm-annotation')
+    parser.add_argument('output_path', type=str)
+    parser.add_argument('--query', type=str, default='default', help='PostgreSQL query to run.')
+    parser.add_argument('--model', type=str, default='gpt-4o-mini', help='OpenAI model to use for annotation. Default is gpt-4o-mini.')
+    parser.add_argument('--prompt', type=str, default='default', 
+                        help='Prompt to feed to LLM for annotation. It is one of the following values (but you can add others in params.py): (default, default_with_reasoning, kaist)')
+    parser.add_argument('-s', '--annotations_per_save', type=int, default=10000, help='Number of annotations to save to each output csv file. Defaults to 10,000.')
+    parser.add_argument('-n','--number_of_annotations', type=int, default=10000, help='Number of total annotations expected to run. Used for progress bar. Defaults to 10,000.')
+    parser.add_argument('--max_threads', type=int, default=10, help='The maximum number of threads to use. Defaults to 10.')
+    parser.add_argument('--temperature', type=int, default=0, help='Temperature of the model to use. Defaults to 0.')
+    parser.add_argument('-m', '--maplight', action='store_true', help='Boolean flag indicating if data being processed comes from Maplight dataset.')
+    parser.add_argument('-r', '--reasoning', action='store_true', help='Boolean flag indicating if LLM output should include its reasoning.')
+    return parser
+
 def parse_entry(entry: dict, exclude_columns: list, max_text_length: int = 150) -> str:
     """
     Parse an entry into a string that can be fed to an LLM for annotation.
@@ -39,6 +55,7 @@ def parse_entry(entry: dict, exclude_columns: list, max_text_length: int = 150) 
         if not key or not value:
             continue
         if key not in exclude_columns:
+            # Shorten bill summary text to avoid token limit overflow when calling API
             if key == "bill_summary_text" and len(value) > max_text_length:
                 value = value[:137] + "..."
             parsed_text_array.append(f"{key}: {value}")

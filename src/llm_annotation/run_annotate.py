@@ -9,14 +9,37 @@ import pandas as pd
 import psycopg2 
 from dotenv import load_dotenv
 
-from annotation import Annotation, AnnotationTable, PredictedClass
-from utils import create_logger, parse_entry
+from annotation import Annotation, AnnotationWithReasoning, AnnotationTable, PredictedClass
+from utils import create_logger, parse_entry, create_parser
 from params import *
 
 logger = create_logger("annotations")
+argparser = create_parser()
+args = argparser.parse_args()
 
-# TODO Select your prompt 
-PROMPT = PROMPT_1_NO_EXP
+OUTPUT_PATH = args.output_path
+PROMPT = DEFAULT_PROMPT
+if args.prompt == "default_with_reasoning":
+    PROMPT = DEFAULT_PROMPT_WITH_REASONING
+elif args.prompt == "kaist":
+    PROMPT = KAIST_PROMPT
+QUERY = DEFAULT_QUERY       # TODO: Add support for other queries
+if args.query == "test":
+    QUERY = TEST_QUERY
+elif args.query == "maplight":
+    QUERY = MAPLIGHT_QUERY
+MODEL = args.model
+TEMPERATURE = args.temperature
+ANNOTATIONS_PER_SAVE = args.annotations_per_save
+NUMBER_OF_ANNOTATIONS = args.number_of_annotations
+MAX_THREADS = args.max_threads
+USING_MAPLIGHT = args.maplight
+USING_REASONING = args.reasoning
+OUTPUT_COLUMNS = DEFAULT_OUTPUT_COLUMNS
+if USING_REASONING:
+    OUTPUT_COLUMNS.append('reasoning')
+if USING_MAPLIGHT:
+    OUTPUT_COLUMNS.extend(['maplight_disposition', 'equals_maplight'])
 
 # Load environment vars from .env
 load_dotenv()
@@ -49,24 +72,27 @@ class AnnotationThread(threading.Thread):
         self.df_lock = df_lock
 
     def save_annotation(self, annotation: Annotation):
-        # Check if llm annotation matches Maplight ground truth data
-        equals_maplight = False
-        if str(annotation.predicted_class).lower() == self.entry_dict['disposition'].lower():
-            equals_maplight = True
         update_dict = {
             'filing_uuid': annotation.filing_uuid,
             'issue_text': annotation.issue_text,
             'predicted_class': annotation.predicted_class,
-            # TODO 'reasoning': llm_annotation.reasoning,
-            'maplight_disposition': self.entry_dict['disposition'].upper(),
-            'equals_maplight': equals_maplight
         }
+        if USING_MAPLIGHT:
+            # Check if llm annotation matches Maplight ground truth data
+            equals_maplight = False
+            if str(annotation.predicted_class).lower() == self.entry_dict['disposition'].lower():
+                equals_maplight = True
+            update_dict['maplight_disposition'] = self.entry_dict['disposition'].upper(),
+            update_dict['equals_maplight'] = equals_maplight
+        if USING_REASONING:
+            update_dict['reasoning'] = annotation.reasoning
         self.completed_annotations.add_entry(update_dict)
 
     # Override the run method
     def run(self):
         try:
-            parsed_text = parse_entry(self.entry_dict, EXCLUDE_COLUMNS)
+            exclude_columns = DEFAULT_EXCLUDE_COLUMNS if USING_MAPLIGHT else []
+            parsed_text = parse_entry(self.entry_dict, exclude_columns)
             llm_annotation = annotate(parsed_text, self.annotation_count)
             # Save annotation to shared completed annotations table
             with self.df_lock:
@@ -78,7 +104,6 @@ class AnnotationThread(threading.Thread):
         except Exception as e:
             logger.error(f"Annotation {self.annotation_count} with data {self.entry_dict} failed with the following error:\n {e}")
 
-
 def create_db_connection():
     connection = psycopg2.connect(
         host=os.environ["LOBBYVIEW_HOST"],
@@ -89,7 +114,7 @@ def create_db_connection():
     return connection
 
 
-def annotate(data: str, annotation_count: int) -> Annotation:
+def annotate(data: str, annotation_count: int) -> Annotation|AnnotationWithReasoning:
     """
     Using OpenAI's API, annotate (classify) lobbying report as either:
         {SUPPORT, OPPOSE, AMEND, MONITOR, UNSURE}
@@ -102,6 +127,7 @@ def annotate(data: str, annotation_count: int) -> Annotation:
     Raises:
         Exception if model refuses to provide an answer, possibly for token limit or safety reasons
     """
+    response_format = AnnotationWithReasoning if USING_REASONING else Annotation
     chat_completion = client.beta.chat.completions.parse(
         model=MODEL,
         store=False,
@@ -111,10 +137,10 @@ def annotate(data: str, annotation_count: int) -> Annotation:
             {"role": "user",
                 "content": data},
             ],
-        response_format=Annotation,
+        response_format=response_format,
         temperature=TEMPERATURE,
     )
-    annotation: Annotation = chat_completion.choices[0].message
+    annotation: Annotation|AnnotationWithReasoning = chat_completion.choices[0].message
     if annotation.refusal:
         raise Exception(f"Refusal raised for annotation {annotation_count} with the following data entry:\n {data}")
     else:
@@ -122,6 +148,7 @@ def annotate(data: str, annotation_count: int) -> Annotation:
 
 
 if __name__ == '__main__':
+    # Establish DB connection
     lobbyview = create_db_connection()
     logger.info("Connected to database!\n")
     # Dictionary to store annotations that will eventually save to dataframe
@@ -129,7 +156,7 @@ if __name__ == '__main__':
     with lobbyview.cursor() as cursor:
         logger.info("Executing query...\n")
         cursor.execute("SET statement_timeout = %s", ('1000000',))  # timeout in milliseconds
-        cursor.execute(DEFAULT_QUERY, (NUMBER_OF_ANNOTATIONS,))
+        cursor.execute(QUERY, (NUMBER_OF_ANNOTATIONS, ))
         logger.info("Query returned sucessfully!\n")
 
         # Create a lock to ensure threads don't overwrite each other on the dataframe
